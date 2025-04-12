@@ -103,7 +103,6 @@ const MessageItem = ({ message, index }) => {
                         },
                         // --- Otras personalizaciones opcionales ---
                         // Links: abrir en nueva pestaña
-                        // eslint-disable-next-line jsx-a11y/anchor-has-content // Temporalmente deshabilitar si causa problemas en build y el contenido viene de Markdown
                         a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" className={`font-medium ${isUser ? 'text-purple-300 hover:text-purple-200' : 'text-blue-600 hover:text-blue-800'} underline`} />,
                         // Listas: asegurar estilos (prose debería ayudar)
                          ul: ({node, ...props}) => <ul {...props} className="list-disc list-outside ms-4" />,
