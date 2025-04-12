@@ -1,6 +1,6 @@
-// src/components/ChatPage.js
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+
 // --- Importar Librerías para Markdown y Syntax Highlighting ---
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm'; // Soporte para GitHub Flavored Markdown (tablas, etc.)
@@ -8,6 +8,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 // Elige un tema para el resaltado de código. Ejemplos: atomOneDark, dracula, github, vs, vscDarkPlus ...
 // Puedes explorar más estilos en node_modules/react-syntax-highlighter/dist/esm/styles/prism/
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';// -------------------------------------------------------------
+
 
 // Componente TypingIndicator (sin cambios)
 const TypingIndicator = () => (
@@ -27,6 +28,7 @@ const TypingIndicator = () => (
         </div>
     </motion.div>
 );
+
 
 // --- Componente MessageItem MODIFICADO para Markdown y Syntax Highlighting ---
 const MessageItem = ({ message, index }) => {
@@ -102,15 +104,25 @@ const MessageItem = ({ message, index }) => {
                           );
                         },
                         // --- Otras personalizaciones opcionales ---
-                        // Links: abrir en nueva pestaña
-                        a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" className={`font-medium ${isUser ? 'text-purple-300 hover:text-purple-200' : 'text-blue-600 hover:text-blue-800'} underline`} />,
+                        // Links: abrir en nueva pestaña (CORREGIDO AQUÍ)
+                        a: ({node, children, ...props}) => (
+                            <a 
+                                {...props} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className={`font-medium ${isUser ? 'text-purple-300 hover:text-purple-200' : 'text-blue-600 hover:text-blue-800'} underline`}
+                            >
+                                {children}
+                            </a>
+                        ),
                         // Listas: asegurar estilos (prose debería ayudar)
-                         ul: ({node, ...props}) => <ul {...props} className="list-disc list-outside ms-4" />,
-                         ol: ({node, ...props}) => <ol {...props} className="list-decimal list-outside ms-4" />,
-                         li: ({node, ...props}) => <li {...props} className="my-1" />,
+                         ul: ({node, children, ...props}) => <ul {...props} className="list-disc list-outside ms-4">{children}</ul>,
+                         ol: ({node, children, ...props}) => <ol {...props} className="list-decimal list-outside ms-4">{children}</ol>,
+                         li: ({node, children, ...props}) => <li {...props} className="my-1">{children}</li>,
                     }}
                 />
                  {/* ----------------------------------------- */}
+
 
                  {/* Timestamp opcional */}
                  {message.timestamp && (
@@ -130,12 +142,14 @@ const MessageItem = ({ message, index }) => {
 };
 
 
+
 // Componente Principal ChatPage
 function ChatPage({ conversation, onSendMessage, isLocked, timeLeft, formatTimeLeft, isAiResponding }) {
     // --- Hooks ---
     const [inputText, setInputText] = useState('');
     const messagesEndRef = useRef(null);
     const textareaRef = useRef(null);
+
 
     // --- useEffects ---
     // Efecto para hacer scroll hacia abajo cuando llegan mensajes nuevos o la IA responde
@@ -147,6 +161,7 @@ function ChatPage({ conversation, onSendMessage, isLocked, timeLeft, formatTimeL
         // *** CORRECCIÓN: Añadida 'conversation' al array de dependencias ***
         // El efecto depende de 'conversation' (para verificar si existe) y 'isAiResponding'
     }, [conversation, isAiResponding]); // Antes era [conversation?.messages, isAiResponding]
+
 
     // Efecto para ajustar la altura del textarea
     useEffect(() => {
@@ -160,6 +175,7 @@ function ChatPage({ conversation, onSendMessage, isLocked, timeLeft, formatTimeL
         }
     }, [inputText]); // Se ejecuta cada vez que cambia el texto de entrada
 
+
     // --- Validación de 'conversation' ---
     // Si la conversación no es válida, muestra un mensaje de error en lugar de intentar renderizar
     if (!conversation || !Array.isArray(conversation.messages)) {
@@ -171,8 +187,10 @@ function ChatPage({ conversation, onSendMessage, isLocked, timeLeft, formatTimeL
          );
     }
 
+
     // --- Lógica del Componente ---
     const handleInputChange = (e) => { setInputText(e.target.value); };
+
 
     const handleSend = (e) => {
         e.preventDefault(); // Prevenir recarga de página en submit de formulario
@@ -185,6 +203,7 @@ function ChatPage({ conversation, onSendMessage, isLocked, timeLeft, formatTimeL
              textareaRef.current.style.height = 'auto';
         }
     };
+
 
     // --- JSX del Componente ---
     return (
@@ -204,6 +223,7 @@ function ChatPage({ conversation, onSendMessage, isLocked, timeLeft, formatTimeL
                     <div ref={messagesEndRef} />
                 </div>
             </div>
+
 
             {/* Área de Input */}
             <div className="p-3 md:p-4 border-t border-gray-200 bg-white shadow-inner">
@@ -258,5 +278,6 @@ function ChatPage({ conversation, onSendMessage, isLocked, timeLeft, formatTimeL
         </div>
     );
 }
+
 
 export default ChatPage;
