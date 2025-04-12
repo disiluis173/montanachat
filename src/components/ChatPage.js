@@ -66,9 +66,9 @@ const MessageItem = ({ message, index }) => {
             )}
              {/* Contenedor del mensaje: Añadidas clases 'prose' */}
              <div className={`prose prose-sm max-w-[75%] w-fit p-3 rounded-xl shadow-md ${ // prose aplica estilos base, prose-sm tamaño pequeño
-                isUser
-                    ? 'ml-auto bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-br-none prose-invert' // Estilos para Markdown en fondo oscuro
-                    : 'mr-auto bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 rounded-bl-none' // Estilos para Markdown en fondo claro
+                 isUser
+                     ? 'ml-auto bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-br-none prose-invert' // Estilos para Markdown en fondo oscuro
+                     : 'mr-auto bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 rounded-bl-none' // Estilos para Markdown en fondo claro
              } `}>
                  {/* --- Renderizado con ReactMarkdown --- */}
                 <ReactMarkdown
@@ -103,7 +103,8 @@ const MessageItem = ({ message, index }) => {
                         },
                         // --- Otras personalizaciones opcionales ---
                         // Links: abrir en nueva pestaña
-                         a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" className={`font-medium ${isUser ? 'text-purple-300 hover:text-purple-200' : 'text-blue-600 hover:text-blue-800'} underline`} />,
+                        // eslint-disable-next-line jsx-a11y/anchor-has-content // Temporalmente deshabilitar si causa problemas en build y el contenido viene de Markdown
+                        a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" className={`font-medium ${isUser ? 'text-purple-300 hover:text-purple-200' : 'text-blue-600 hover:text-blue-800'} underline`} />,
                         // Listas: asegurar estilos (prose debería ayudar)
                          ul: ({node, ...props}) => <ul {...props} className="list-disc list-outside ms-4" />,
                          ol: ({node, ...props}) => <ol {...props} className="list-decimal list-outside ms-4" />,
@@ -130,31 +131,38 @@ const MessageItem = ({ message, index }) => {
 };
 
 
-// Componente Principal ChatPage (sin cambios en la lógica principal)
+// Componente Principal ChatPage
 function ChatPage({ conversation, onSendMessage, isLocked, timeLeft, formatTimeLeft, isAiResponding }) {
-    // --- Hooks (sin cambios) ---
+    // --- Hooks ---
     const [inputText, setInputText] = useState('');
     const messagesEndRef = useRef(null);
     const textareaRef = useRef(null);
 
-    // --- useEffects (sin cambios) ---
+    // --- useEffects ---
+    // Efecto para hacer scroll hacia abajo cuando llegan mensajes nuevos o la IA responde
     useEffect(() => {
+        // Solo hacer scroll si hay una conversación válida y el ref existe
         if (conversation && conversation.messages && messagesEndRef.current) {
              messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
         }
-    }, [conversation?.messages, isAiResponding]);
+        // *** CORRECCIÓN: Añadida 'conversation' al array de dependencias ***
+        // El efecto depende de 'conversation' (para verificar si existe) y 'isAiResponding'
+    }, [conversation, isAiResponding]); // Antes era [conversation?.messages, isAiResponding]
 
+    // Efecto para ajustar la altura del textarea
     useEffect(() => {
         const textarea = textareaRef.current;
         if (textarea) {
-            textarea.style.height = 'auto';
+            textarea.style.height = 'auto'; // Resetear altura
             const scrollHeight = textarea.scrollHeight;
-            const maxHeight = 160;
+            const maxHeight = 160; // Altura máxima en píxeles (ej. 4 líneas)
+            // Ajustar altura hasta el máximo permitido
             textarea.style.height = `${Math.min(scrollHeight, maxHeight)}px`;
         }
-    }, [inputText]);
+    }, [inputText]); // Se ejecuta cada vez que cambia el texto de entrada
 
-    // --- Validación de 'conversation' (sin cambios) ---
+    // --- Validación de 'conversation' ---
+    // Si la conversación no es válida, muestra un mensaje de error en lugar de intentar renderizar
     if (!conversation || !Array.isArray(conversation.messages)) {
         console.error("ChatPage recibió una prop 'conversation' inválida:", conversation);
          return (
@@ -164,14 +172,16 @@ function ChatPage({ conversation, onSendMessage, isLocked, timeLeft, formatTimeL
          );
     }
 
-    // --- Lógica del Componente (sin cambios) ---
+    // --- Lógica del Componente ---
     const handleInputChange = (e) => { setInputText(e.target.value); };
 
     const handleSend = (e) => {
-        e.preventDefault();
+        e.preventDefault(); // Prevenir recarga de página en submit de formulario
+        // No enviar si está bloqueado, la IA está respondiendo o el input está vacío
         if (isLocked || isAiResponding || !inputText.trim()) return;
-        onSendMessage(inputText.trim());
-        setInputText('');
+        onSendMessage(inputText.trim()); // Llamar a la función del padre para enviar el mensaje
+        setInputText(''); // Limpiar el input
+        // Resetear altura del textarea después de enviar
         if (textareaRef.current) {
              textareaRef.current.style.height = 'auto';
         }
@@ -185,19 +195,27 @@ function ChatPage({ conversation, onSendMessage, isLocked, timeLeft, formatTimeL
                 <div className="max-w-4xl mx-auto">
                     <AnimatePresence initial={false}>
                         {conversation.messages.map((msg, index) => (
-                            // MessageItem ahora renderizará Markdown + Syntax Highlighting
+                            // Renderizar cada mensaje usando MessageItem
                             <MessageItem key={msg.timestamp ? `${msg.timestamp}-${index}` : index} message={msg} index={index} />
                         ))}
                     </AnimatePresence>
+                    {/* Mostrar indicador de escritura si la IA está respondiendo */}
                     {isAiResponding && <TypingIndicator />}
+                    {/* Elemento vacío al final para hacer scroll */}
                     <div ref={messagesEndRef} />
                 </div>
             </div>
 
-            {/* Área de Input (sin cambios) */}
+            {/* Área de Input */}
             <div className="p-3 md:p-4 border-t border-gray-200 bg-white shadow-inner">
+                 {/* Mostrar mensaje de cooldown si está bloqueado */}
                  {isLocked && (
-                     <motion.div /* ... Mensaje Cooldown ... */ >
+                     <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="text-center text-xs text-red-600 mb-2 font-medium bg-red-100 p-2 rounded-md"
+                     >
                          <span className="mr-2">⏳</span>
                          Tiempo de espera restante: {formatTimeLeft ? formatTimeLeft(timeLeft) : 'Calculando...'}
                      </motion.div>
@@ -211,26 +229,28 @@ function ChatPage({ conversation, onSendMessage, isLocked, timeLeft, formatTimeL
                             placeholder={isLocked ? "Espera para enviar..." : (isAiResponding ? "Esperando respuesta..." : "Escribe tu mensaje...")}
                             className="flex-1 bg-transparent border-0 focus:ring-0 resize-none px-3 py-2 text-sm text-gray-800 placeholder-gray-500 custom-scrollbar overflow-y-auto"
                             rows="1"
-                            style={{ minHeight: '40px' }}
+                            style={{ minHeight: '40px' }} // Altura mínima
                             onKeyDown={(e) => {
+                                // Enviar con Enter (si no se presiona Shift)
                                 if (e.key === 'Enter' && !e.shiftKey) {
-                                    e.preventDefault();
-                                    handleSend(e);
+                                    e.preventDefault(); // Prevenir salto de línea
+                                    handleSend(e);      // Enviar mensaje
                                 }
                             }}
-                            disabled={isLocked || isAiResponding}
+                            disabled={isLocked || isAiResponding} // Deshabilitar si está bloqueado o esperando IA
                             aria-label="Campo de mensaje"
                         />
                         <button
                             type="submit"
                             className={`p-2 rounded-full transition-all duration-200 flex-shrink-0 ml-2 ${
                                 isLocked || isAiResponding || !inputText.trim()
-                                    ? 'bg-gray-300 cursor-not-allowed'
-                                    : 'bg-gradient-to-br from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow hover:shadow-md transform hover:scale-110'
+                                    ? 'bg-gray-300 cursor-not-allowed' // Estilo deshabilitado
+                                    : 'bg-gradient-to-br from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow hover:shadow-md transform hover:scale-110' // Estilo habilitado
                             }`}
-                            disabled={isLocked || isAiResponding || !inputText.trim()}
+                            disabled={isLocked || isAiResponding || !inputText.trim()} // Deshabilitar botón
                             aria-label="Enviar mensaje"
                         >
+                             {/* Icono de enviar */}
                              <span className="font-bold text-lg transform rotate-45 inline-block">➤</span>
                         </button>
                     </div>
