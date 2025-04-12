@@ -1,11 +1,5 @@
 // netlify/functions/deepseek-chat.js
 
-// Importa 'node-fetch' si necesitas hacer llamadas fetch desde Node.js
-// En las versiones más recientes de Node.js soportadas por Netlify, 'fetch' puede ser global.
-// Si encuentras errores relacionados con fetch, descomenta la siguiente línea e instala node-fetch:
-// npm install node-fetch
-// const fetch = require('node-fetch'); // O usa import si tu proyecto está configurado para ES Modules
-
 exports.handler = async (event, context) => {
   // 1. Verificar el método HTTP (solo permitir POST)
   if (event.httpMethod !== 'POST') {
@@ -31,7 +25,6 @@ exports.handler = async (event, context) => {
   // 3. Parsear los mensajes enviados desde el frontend
   let messages;
   try {
-    // El cuerpo de la solicitud viene en event.body como un string JSON
     const body = JSON.parse(event.body);
     messages = body.messages; // Extraer el array de mensajes
     if (!Array.isArray(messages)) {
@@ -47,35 +40,51 @@ exports.handler = async (event, context) => {
   }
 
   // 4. Preparar y realizar la llamada a la API de Deepseek
-  const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions'; // URL oficial de la API de Deepseek Chat
+  // CORRECCIÓN: URL CORRECTA CON /v1/
+  const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 
   try {
-    console.log('Llamando a la API de Deepseek...');
+    console.log('Llamando a la API de Deepseek con mensajes:', JSON.stringify(messages));
+    
+    // Si necesitas 'node-fetch' descomenta:
+    // const fetch = require('node-fetch');
+    
     const response = await fetch(DEEPSEEK_API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`, // Autenticación tipo Bearer Token
+        'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "deepseek-chat", // O el modelo específico que estés usando
-        messages: messages,     // El historial de mensajes recibido del frontend
-        // Puedes añadir otros parámetros si son necesarios (temperature, max_tokens, etc.)
-        // stream: false, // Asegúrate de que no esté en modo stream si esperas una respuesta completa
+        model: "deepseek-chat",
+        messages: messages,
+        temperature: 0.7,
+        max_tokens: 2000
       }),
     });
 
     // 5. Manejar la respuesta de la API de Deepseek
     if (!response.ok) {
-      // Si Deepseek devuelve un error
-      const errorText = await response.text();
-      console.error(`Error desde la API de Deepseek (${response.status}): ${errorText}`);
-      // Devuelve el error al frontend
+      let errorMessage = '';
+      try {
+        // Intentar obtener detalles del error en formato JSON
+        const errorJson = await response.json();
+        errorMessage = errorJson.error?.message || JSON.stringify(errorJson);
+        console.error(`Error desde la API de Deepseek (${response.status}):`, errorJson);
+      } catch (e) {
+        // Si no es JSON, obtener el texto
+        const errorText = await response.text();
+        errorMessage = errorText;
+        console.error(`Error desde la API de Deepseek (${response.status}):`, errorText);
+      }
+
       return {
         statusCode: response.status,
         headers: { 'Content-Type': 'application/json' },
-        // Intenta devolver el mensaje de error de Deepseek si es posible
-        body: JSON.stringify({ error: `Error al contactar la IA: ${errorText}` }),
+        body: JSON.stringify({ 
+          success: false,
+          error: `Error ${response.status}: ${errorMessage}` 
+        }),
       };
     }
 
@@ -83,21 +92,26 @@ exports.handler = async (event, context) => {
     const aiData = await response.json();
     console.log('Respuesta recibida de Deepseek:', JSON.stringify(aiData, null, 2));
 
-    // 6. Devolver la respuesta de Deepseek al frontend
-    // Tu frontend (api.js) espera directamente el objeto JSON de la respuesta.
+    // 6. Procesar la respuesta para enviar solo lo necesario al frontend
+    // Adaptando formato a lo que espera tu frontend
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(aiData), // Envía la respuesta completa de Deepseek
+      body: JSON.stringify({
+        success: true,
+        data: aiData.choices?.[0]?.message?.content || aiData
+      }),
     };
 
   } catch (error) {
-    // Capturar errores generales (ej. de red al llamar a Deepseek)
     console.error('Error general en la Netlify Function:', error);
     return {
       statusCode: 500,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'Error interno del servidor al procesar la solicitud.' }),
+      body: JSON.stringify({ 
+        success: false,
+        error: 'Error de conexión: ' + (error.message || 'desconocido') 
+      }),
     };
   }
 };
