@@ -2,15 +2,7 @@
   command = "npm run build"
   publish = "build"
   functions = "netlify/functions"
-
-[functions]
-  node_bundler = "esbuild"
-  external_node_modules = ["stream"]
-  included_files = []
-
-[[functions.function]]
-  pattern = "deepseek-chat"
-  timeout = 30
+  
 
 [[redirects]]
   from = "/*"
