@@ -58,13 +58,27 @@ export const sendMessageToAI = async (messages) => {
         }
       }
       
+      // CORRECCIÓN: Asegurar formato consistente con la respuesta JSON
       return {
         success: true,
-        data: completeResponse
+        data: {
+          text: completeResponse
+        }
       };
     } else {
       // Procesar como JSON regular (para compatibilidad)
       const data = await response.json();
+      
+      // Asegurar que la respuesta tenga el formato esperado por la aplicación
+      if (data.success && typeof data.data === 'string') {
+        return {
+          success: true,
+          data: {
+            text: data.data
+          }
+        };
+      }
+      
       return data;
     }
     
