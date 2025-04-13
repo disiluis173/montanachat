@@ -1,14 +1,16 @@
 [build]
+  publish = "public"
   command = "npm run build"
-  publish = "build"
-  functions = "netlify/functions"
 
 [functions]
-  node_bundler = "esbuild"
+  directory = "netlify/functions"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+
+# Configuración de timeout global
+[build.processing.functions]
   timeout = 30
-
-
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
