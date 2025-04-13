@@ -23,8 +23,50 @@ export const sendMessageToAI = async (messages) => {
       throw new Error(`Error ${response.status}: ${errorText || 'Sin detalles'}`);
     }
     
-    const data = await response.json();
-    return data;
+    // Verificar si la respuesta es un stream (content-type contiene 'event-stream')
+    const contentType = response.headers.get('content-type');
+    
+    if (contentType && contentType.includes('text/event-stream')) {
+      // Procesar como stream
+      const reader = response.body.getReader();
+      let completeResponse = "";
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        // Decodificar el chunk
+        const chunk = new TextDecoder().decode(value);
+        
+        // Procesar cada línea que comienza con "data: "
+        const lines = chunk.split('\n');
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.substring(6);
+            
+            // Ignorar el [DONE] que envía DeepSeek al final
+            if (data === '[DONE]') continue;
+            
+            try {
+              const parsedData = JSON.parse(data);
+              const contentDelta = parsedData.choices[0]?.delta?.content || '';
+              completeResponse += contentDelta;
+            } catch (e) {
+              console.error('Error parsing streaming chunk:', e);
+            }
+          }
+        }
+      }
+      
+      return {
+        success: true,
+        data: completeResponse
+      };
+    } else {
+      // Procesar como JSON regular (para compatibilidad)
+      const data = await response.json();
+      return data;
+    }
     
   } catch (error) {
     console.error('Error al comunicarse con el servidor:', error);

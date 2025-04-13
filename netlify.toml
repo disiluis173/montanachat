@@ -3,6 +3,10 @@
   publish = "build"
   functions = "netlify/functions"
 
+
+[functions]
+  timeout = 30  # Aumentar a 30 segundos (máximo permitido)
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
